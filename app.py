@@ -22,8 +22,8 @@ from pydantic import BaseModel
 # ── Modal image & volume ───────────────────────────────────────────────
 
 image = (
-    modal.Image.debian_slim(python_version="3.12")
-    .pip_install("fastapi[standard]", "duckdb>=1.1", "pyarrow>=19.0")
+    modal.Image.debian_slim(python_version="3.13")
+    .uv_pip_install("fastapi[standard]", "duckdb>=1.1", "pydantic>=2.0")
     .add_local_python_source("spyhop")
 )
 

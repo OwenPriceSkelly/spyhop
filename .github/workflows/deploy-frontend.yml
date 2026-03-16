@@ -1,0 +1,29 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Substitute prod API URL
+        run: |
+          mkdir _site
+          sed 's|https://garden-ai-dev--spyhop-spyhopserver-serve.modal.run|https://garden-ai--spyhop-spyhopserver-serve.modal.run|g' index.html > _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

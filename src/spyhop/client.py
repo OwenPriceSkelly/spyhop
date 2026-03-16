@@ -13,7 +13,7 @@ import httpx
 
 from spyhop.query import CountResult, FilterSpec, ManifestRow
 
-DEFAULT_BASE_URL = os.environ.get("SPYHOP_URL", "https://garden-ai--spyhop-spyhopserver-serve-dev.modal.run")
+DEFAULT_BASE_URL = os.environ.get("SPYHOP_URL", "https://garden-ai--spyhop-spyhopserver-serve.modal.run")
 
 
 def count(spec: FilterSpec, base_url: str = DEFAULT_BASE_URL) -> CountResult:
