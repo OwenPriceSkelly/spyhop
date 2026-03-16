@@ -42,5 +42,5 @@ The `FilterSpec` dataclass in `query.py` is the shared contract between all clie
 - Run Python with `uv run`, never bare `python`
 - Package dependencies (`pyproject.toml`) are only what the CLI and client need at runtime: `httpx`, `typer`, `pydantic`. DuckDB and PyArrow are server-only and installed by the Modal image.
 - The Modal environment for local dev is `dev` (`garden-ai` account). The `MODAL_ENV` env var switches between `dev` and `main`.
-- The API base URL is hardcoded in `client.py` and `index.html` but overridable via `SPYHOP_URL` env var.
+- The API base URL is hardcoded in `client.py` and `index.html` but overridable via `SPYHOP_URL` env var. For `dev` this URL should be https://garden-ai-dev--spyhop-spyhopserver-serve.modal.run; for `main` it should be https://garden-ai--spyhop-spyhopserver-serve.modal.run 
 - Domain values are validated against a fixed set of 10 in `query.py` (`VALID_DOMAINS`). If the index is extended to OMol-1 or OPoly26, update this set.

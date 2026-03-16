@@ -1,0 +1,22 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - app.py
+      - src/**
+      - pyproject.toml
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      MODAL_ENV: ${{ github.ref == 'refs/heads/main' && 'main' || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run modal deploy --env $MODAL_ENV app.py
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
