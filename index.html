@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>spyhop 🔍🐋</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>[x-cloak]{display:none!important}</style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen py-8 px-4">
+<div class="max-w-5xl mx-auto space-y-5" x-data="spyhop()" x-init="init()" x-cloak>
+
+  <!-- Header -->
+  <div>
+    <h1 class="text-2xl font-bold">spyhop 🔍🐋</h1>
+    <p class="text-sm text-gray-500 mt-1">Filter the OMol25 DFT dataset by element composition and molecular properties. Generate a Globus transfer manifest for your selection.</p>
+  </div>
+
+  <!-- Periodic Table -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 overflow-x-auto">
+    <div class="min-w-[560px] space-y-[2px]">
+
+      <!-- Main grid rows 1–7 -->
+      <template x-for="(row, ri) in mainGrid" :key="ri">
+        <div style="display:grid;grid-template-columns:repeat(18,minmax(0,1fr));gap:2px">
+          <template x-for="(cell, ci) in row" :key="ci">
+            <div>
+              <!-- Element button -->
+              <button
+                x-show="cell && !cell.placeholder"
+                x-on:click="cell && toggleElement(cell.symbol)"
+                :class="cell ? elementClass(cell.symbol) : ''"
+                class="w-full aspect-square rounded text-center flex flex-col items-center justify-center transition-colors duration-100 leading-none"
+                :title="cell ? cell.symbol + ' (' + cell.number + ')' : ''"
+              >
+                <span class="text-[11px] font-bold" x-text="cell?.symbol"></span>
+                <span class="text-[8px] opacity-60" x-text="cell?.number"></span>
+              </button>
+              <!-- Lanthanide/actinide placeholder marker -->
+              <div
+                x-show="cell?.placeholder"
+                class="w-full aspect-square rounded bg-gray-50 border border-dashed border-gray-300 flex items-center justify-center text-[8px] text-gray-400 leading-none text-center"
+                x-text="cell?.label"
+              ></div>
+              <!-- Empty cell -->
+              <div x-show="!cell" class="w-full aspect-square"></div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- F-block gap + rows 8–9 (lanthanides / actinides) -->
+      <div class="pt-2 space-y-[2px]">
+        <template x-for="(row, ri) in fblockGrid" :key="ri">
+          <div style="display:grid;grid-template-columns:repeat(18,minmax(0,1fr));gap:2px">
+            <template x-for="(cell, ci) in row" :key="ci">
+              <div>
+                <button
+                  x-show="cell"
+                  x-on:click="cell && toggleElement(cell.symbol)"
+                  :class="cell ? elementClass(cell.symbol) : ''"
+                  class="w-full aspect-square rounded text-center flex flex-col items-center justify-center transition-colors duration-100 leading-none"
+                  :title="cell ? cell.symbol + ' (' + cell.number + ')' : ''"
+                >
+                  <span class="text-[11px] font-bold" x-text="cell?.symbol"></span>
+                  <span class="text-[8px] opacity-60" x-text="cell?.number"></span>
+                </button>
+                <div x-show="!cell" class="w-full aspect-square"></div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+    </div>
+
+    <!-- Legend -->
+    <div class="flex flex-wrap gap-4 mt-3 text-xs text-gray-500 items-center">
+      <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-gray-100 border border-gray-300"></span>neutral</span>
+      <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-green-500"></span>must include</span>
+      <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-3 rounded bg-red-500"></span>must exclude</span>
+      <span class="ml-auto text-gray-400">click to cycle</span>
+    </div>
+  </div>
+
+  <!-- Advanced Filters -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+    <button
+      class="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+      x-on:click="advancedOpen = !advancedOpen"
+    >
+      <span>Advanced filters</span>
+      <svg :class="advancedOpen ? 'rotate-180' : ''" class="w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div
+      x-show="advancedOpen"
+      x-transition:enter="transition ease-out duration-150"
+      x-transition:enter-start="opacity-0 -translate-y-1"
+      x-transition:enter-end="opacity-100 translate-y-0"
+      class="px-4 pb-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"
+    >
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Domain</label>
+        <select x-model="domain" x-on:change="updateCount()" class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">any</option>
+          <template x-for="d in domains" :key="d">
+            <option :value="d" x-text="d"></option>
+          </template>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Min atoms</label>
+        <input type="number" x-model="minAtoms" x-on:input="updateCount()" min="1" placeholder="—"
+          class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Max atoms</label>
+        <input type="number" x-model="maxAtoms" x-on:input="updateCount()" min="1" placeholder="—"
+          class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Charge</label>
+        <input type="number" x-model="charge" x-on:input="updateCount()" placeholder="—"
+          class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Spin (2S+1)</label>
+        <input type="number" x-model="spin" x-on:input="updateCount()" min="1" placeholder="—"
+          class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-4">
+
+    <!-- Count + reset -->
+    <div class="flex items-center justify-between gap-4">
+      <div :class="countLoading ? 'opacity-40' : ''" class="transition-opacity duration-200">
+        <template x-if="countError">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl font-bold text-gray-300">—</span>
+            <span class="text-sm text-red-500" x-text="countError"></span>
+          </div>
+        </template>
+        <template x-if="!countError">
+          <div>
+            <span class="text-2xl font-bold" x-text="count !== null ? count.toLocaleString() : '—'"></span>
+            <span class="text-gray-500 ml-1">structures</span>
+            <span class="text-gray-400 ml-2 text-sm" x-text="estimatedGb !== null ? '(~' + estimatedGb.toFixed(1) + ' GB)' : ''"></span>
+          </div>
+        </template>
+      </div>
+      <button
+        x-on:click="resetFilters()"
+        class="shrink-0 text-sm text-gray-500 hover:text-gray-800 border border-gray-200 rounded px-3 py-1.5 hover:bg-gray-50 transition-colors"
+      >Reset all</button>
+    </div>
+
+    <!-- Manifest -->
+    <div class="space-y-3">
+      <button
+        x-on:click="generateManifest()"
+        :disabled="manifestLoading || count === 0"
+        class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded transition-colors"
+      >
+        <span x-show="!manifestLoading">Generate manifest</span>
+        <span x-show="manifestLoading">Generating…</span>
+      </button>
+
+      <template x-if="manifestError">
+        <p class="text-sm text-red-500" x-text="manifestError"></p>
+      </template>
+
+      <template x-if="manifestPreview">
+        <div class="space-y-2">
+          <pre class="bg-gray-50 border border-gray-200 rounded p-3 text-xs font-mono overflow-x-auto whitespace-pre" x-text="manifestPreview"></pre>
+          <a
+            :href="manifestDownloadUrl"
+            download="manifest.txt"
+            class="inline-block text-sm text-blue-600 hover:text-blue-500 underline underline-offset-2"
+            x-text="`Download full manifest (${manifestCount.toLocaleString()} paths)`"
+          ></a>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="text-xs text-gray-400 text-center pb-4">
+    OMol25 dataset ·
+    <a href="https://app.globus.org/file-manager?origin_id=0b73865a-ff20-4f57-a1d7-573d86b54624&origin_path=%2F"
+       target="_blank" rel="noopener" class="hover:text-gray-600 underline underline-offset-2">Globus collection</a>
+    ·
+    <a href="https://huggingface.co/datasets/facebook/OMol25"
+       target="_blank" rel="noopener" class="hover:text-gray-600 underline underline-offset-2">HuggingFace</a>
+  </div>
+
+</div>
+
+<script>
+const API_URL = "https://garden-ai--spyhop-spyhopserver-serve-dev.modal.run";
+
+const DOMAINS = [
+  "biomolecules", "elytes", "metal_complexes", "reactivity",
+  "ani2x", "trans1x", "geom_orca6", "rgd", "orbnet_denali", "spice",
+];
+
+// All 118 elements with standard periodic table grid positions (1-indexed row, col).
+// Lanthanides (La–Lu, Z=57–71) → row 8, cols 3–17
+// Actinides  (Ac–Lr, Z=89–103) → row 9, cols 3–17
+// Row 6 col 3 and row 7 col 3 are placeholder markers.
+const ELEMENT_DATA = [
+  // Period 1
+  {symbol:"H",  number:1,   row:1, col:1},
+  {symbol:"He", number:2,   row:1, col:18},
+  // Period 2
+  {symbol:"Li", number:3,   row:2, col:1},  {symbol:"Be", number:4,   row:2, col:2},
+  {symbol:"B",  number:5,   row:2, col:13}, {symbol:"C",  number:6,   row:2, col:14},
+  {symbol:"N",  number:7,   row:2, col:15}, {symbol:"O",  number:8,   row:2, col:16},
+  {symbol:"F",  number:9,   row:2, col:17}, {symbol:"Ne", number:10,  row:2, col:18},
+  // Period 3
+  {symbol:"Na", number:11,  row:3, col:1},  {symbol:"Mg", number:12,  row:3, col:2},
+  {symbol:"Al", number:13,  row:3, col:13}, {symbol:"Si", number:14,  row:3, col:14},
+  {symbol:"P",  number:15,  row:3, col:15}, {symbol:"S",  number:16,  row:3, col:16},
+  {symbol:"Cl", number:17,  row:3, col:17}, {symbol:"Ar", number:18,  row:3, col:18},
+  // Period 4
+  {symbol:"K",  number:19,  row:4, col:1},  {symbol:"Ca", number:20,  row:4, col:2},
+  {symbol:"Sc", number:21,  row:4, col:3},  {symbol:"Ti", number:22,  row:4, col:4},
+  {symbol:"V",  number:23,  row:4, col:5},  {symbol:"Cr", number:24,  row:4, col:6},
+  {symbol:"Mn", number:25,  row:4, col:7},  {symbol:"Fe", number:26,  row:4, col:8},
+  {symbol:"Co", number:27,  row:4, col:9},  {symbol:"Ni", number:28,  row:4, col:10},
+  {symbol:"Cu", number:29,  row:4, col:11}, {symbol:"Zn", number:30,  row:4, col:12},
+  {symbol:"Ga", number:31,  row:4, col:13}, {symbol:"Ge", number:32,  row:4, col:14},
+  {symbol:"As", number:33,  row:4, col:15}, {symbol:"Se", number:34,  row:4, col:16},
+  {symbol:"Br", number:35,  row:4, col:17}, {symbol:"Kr", number:36,  row:4, col:18},
+  // Period 5
+  {symbol:"Rb", number:37,  row:5, col:1},  {symbol:"Sr", number:38,  row:5, col:2},
+  {symbol:"Y",  number:39,  row:5, col:3},  {symbol:"Zr", number:40,  row:5, col:4},
+  {symbol:"Nb", number:41,  row:5, col:5},  {symbol:"Mo", number:42,  row:5, col:6},
+  {symbol:"Tc", number:43,  row:5, col:7},  {symbol:"Ru", number:44,  row:5, col:8},
+  {symbol:"Rh", number:45,  row:5, col:9},  {symbol:"Pd", number:46,  row:5, col:10},
+  {symbol:"Ag", number:47,  row:5, col:11}, {symbol:"Cd", number:48,  row:5, col:12},
+  {symbol:"In", number:49,  row:5, col:13}, {symbol:"Sn", number:50,  row:5, col:14},
+  {symbol:"Sb", number:51,  row:5, col:15}, {symbol:"Te", number:52,  row:5, col:16},
+  {symbol:"I",  number:53,  row:5, col:17}, {symbol:"Xe", number:54,  row:5, col:18},
+  // Period 6 (placeholder at col 3 — see buildGrid)
+  {symbol:"Cs", number:55,  row:6, col:1},  {symbol:"Ba", number:56,  row:6, col:2},
+  {symbol:"Hf", number:72,  row:6, col:4},  {symbol:"Ta", number:73,  row:6, col:5},
+  {symbol:"W",  number:74,  row:6, col:6},  {symbol:"Re", number:75,  row:6, col:7},
+  {symbol:"Os", number:76,  row:6, col:8},  {symbol:"Ir", number:77,  row:6, col:9},
+  {symbol:"Pt", number:78,  row:6, col:10}, {symbol:"Au", number:79,  row:6, col:11},
+  {symbol:"Hg", number:80,  row:6, col:12}, {symbol:"Tl", number:81,  row:6, col:13},
+  {symbol:"Pb", number:82,  row:6, col:14}, {symbol:"Bi", number:83,  row:6, col:15},
+  {symbol:"Po", number:84,  row:6, col:16}, {symbol:"At", number:85,  row:6, col:17},
+  {symbol:"Rn", number:86,  row:6, col:18},
+  // Period 7 (placeholder at col 3 — see buildGrid)
+  {symbol:"Fr", number:87,  row:7, col:1},  {symbol:"Ra", number:88,  row:7, col:2},
+  {symbol:"Rf", number:104, row:7, col:4},  {symbol:"Db", number:105, row:7, col:5},
+  {symbol:"Sg", number:106, row:7, col:6},  {symbol:"Bh", number:107, row:7, col:7},
+  {symbol:"Hs", number:108, row:7, col:8},  {symbol:"Mt", number:109, row:7, col:9},
+  {symbol:"Ds", number:110, row:7, col:10}, {symbol:"Rg", number:111, row:7, col:11},
+  {symbol:"Cn", number:112, row:7, col:12}, {symbol:"Nh", number:113, row:7, col:13},
+  {symbol:"Fl", number:114, row:7, col:14}, {symbol:"Mc", number:115, row:7, col:15},
+  {symbol:"Lv", number:116, row:7, col:16}, {symbol:"Ts", number:117, row:7, col:17},
+  {symbol:"Og", number:118, row:7, col:18},
+  // Lanthanides (row 8, cols 3–17)
+  {symbol:"La", number:57,  row:8, col:3},  {symbol:"Ce", number:58,  row:8, col:4},
+  {symbol:"Pr", number:59,  row:8, col:5},  {symbol:"Nd", number:60,  row:8, col:6},
+  {symbol:"Pm", number:61,  row:8, col:7},  {symbol:"Sm", number:62,  row:8, col:8},
+  {symbol:"Eu", number:63,  row:8, col:9},  {symbol:"Gd", number:64,  row:8, col:10},
+  {symbol:"Tb", number:65,  row:8, col:11}, {symbol:"Dy", number:66,  row:8, col:12},
+  {symbol:"Ho", number:67,  row:8, col:13}, {symbol:"Er", number:68,  row:8, col:14},
+  {symbol:"Tm", number:69,  row:8, col:15}, {symbol:"Yb", number:70,  row:8, col:16},
+  {symbol:"Lu", number:71,  row:8, col:17},
+  // Actinides (row 9, cols 3–17)
+  {symbol:"Ac", number:89,  row:9, col:3},  {symbol:"Th", number:90,  row:9, col:4},
+  {symbol:"Pa", number:91,  row:9, col:5},  {symbol:"U",  number:92,  row:9, col:6},
+  {symbol:"Np", number:93,  row:9, col:7},  {symbol:"Pu", number:94,  row:9, col:8},
+  {symbol:"Am", number:95,  row:9, col:9},  {symbol:"Cm", number:96,  row:9, col:10},
+  {symbol:"Bk", number:97,  row:9, col:11}, {symbol:"Cf", number:98,  row:9, col:12},
+  {symbol:"Es", number:99,  row:9, col:13}, {symbol:"Fm", number:100, row:9, col:14},
+  {symbol:"Md", number:101, row:9, col:15}, {symbol:"No", number:102, row:9, col:16},
+  {symbol:"Lr", number:103, row:9, col:17},
+];
+
+function buildGrid() {
+  const grid = Array.from({length: 9}, () => Array(18).fill(null));
+  for (const el of ELEMENT_DATA) {
+    grid[el.row - 1][el.col - 1] = el;
+  }
+  // Placeholder markers at period 6 and 7, col 3
+  grid[5][2] = {placeholder: true, label: "57–71"};
+  grid[6][2] = {placeholder: true, label: "89–103"};
+  return grid;
+}
+
+const FULL_GRID = buildGrid();
+
+function spyhop() {
+  return {
+    // Filter state
+    must_have: [],
+    must_not_have: [],
+    domain: '',
+    minAtoms: '',
+    maxAtoms: '',
+    charge: '',
+    spin: '',
+
+    // UI state
+    advancedOpen: false,
+    domains: DOMAINS,
+    mainGrid: FULL_GRID.slice(0, 7),
+    fblockGrid: FULL_GRID.slice(7),
+
+    // Count result
+    count: null,
+    estimatedGb: null,
+    countLoading: false,
+    countError: null,
+
+    // Manifest result
+    manifestLoading: false,
+    manifestError: null,
+    manifestPreview: null,
+    manifestDownloadUrl: null,
+    manifestCount: null,
+    _debounceTimer: null,
+    _blobUrl: null,
+
+    // ── Element state ────────────────────────────────────────────────
+
+    elementState(sym) {
+      if (this.must_have.includes(sym)) return 'must_have';
+      if (this.must_not_have.includes(sym)) return 'must_not_have';
+      return 'neutral';
+    },
+
+    toggleElement(sym) {
+      const state = this.elementState(sym);
+      if (state === 'neutral') {
+        this.must_have.push(sym);
+      } else if (state === 'must_have') {
+        this.must_have = this.must_have.filter(s => s !== sym);
+        this.must_not_have.push(sym);
+      } else {
+        this.must_not_have = this.must_not_have.filter(s => s !== sym);
+      }
+      this.updateCount();
+    },
+
+    elementClass(sym) {
+      const state = this.elementState(sym);
+      if (state === 'must_have')     return 'bg-green-500 hover:bg-green-400 text-white';
+      if (state === 'must_not_have') return 'bg-red-500 hover:bg-red-400 text-white';
+      return 'bg-gray-100 hover:bg-gray-200 text-gray-700';
+    },
+
+    // ── Filter spec ──────────────────────────────────────────────────
+
+    buildSpec() {
+      const spec = {};
+      if (this.must_have.length > 0)     spec.must_have = [...this.must_have];
+      if (this.must_not_have.length > 0) spec.must_not_have = [...this.must_not_have];
+      if (this.domain)                   spec.domain = this.domain;
+      const numAtoms = {};
+      if (this.minAtoms !== '') numAtoms.min = parseInt(this.minAtoms);
+      if (this.maxAtoms !== '') numAtoms.max = parseInt(this.maxAtoms);
+      if (Object.keys(numAtoms).length)  spec.num_atoms = numAtoms;
+      if (this.charge !== '')            spec.charge = parseInt(this.charge);
+      if (this.spin !== '')              spec.spin = parseInt(this.spin);
+      return spec;
+    },
+
+    // ── Count ────────────────────────────────────────────────────────
+
+    updateCount() {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = setTimeout(() => this._fetchCount(), 300);
+    },
+
+    async _fetchCount() {
+      this.countLoading = true;
+      this.countError = null;
+      try {
+        const resp = await fetch(`${API_URL}/query/count`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(this.buildSpec()),
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        this.count = data.count;
+        this.estimatedGb = data.estimated_gb;
+      } catch (e) {
+        this.countError = e.message;
+        this.count = null;
+        this.estimatedGb = null;
+      } finally {
+        this.countLoading = false;
+      }
+    },
+
+    // ── Manifest ─────────────────────────────────────────────────────
+
+    async generateManifest() {
+      this.manifestLoading = true;
+      this.manifestError = null;
+      this.manifestPreview = null;
+      this.manifestDownloadUrl = null;
+      if (this._blobUrl) { URL.revokeObjectURL(this._blobUrl); this._blobUrl = null; }
+
+      try {
+        const resp = await fetch(`${API_URL}/query/manifest`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(this.buildSpec()),
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        this.manifestCount = data.count;
+
+        const header = [
+          `# OMol25 subset — ${data.count.toLocaleString()} systems`,
+          `# Usage: globus transfer $EAGLE_EP:/ $DEST_EP:/local/path/ --batch manifest.txt --recursive`,
+        ];
+        const pathLines = data.manifest.map(row => {
+          const p = row.eagle_path.replace(/\/?$/, '/');
+          return `${p} ${p}`;
+        });
+        const fullText = [...header, ...pathLines].join('\n') + '\n';
+
+        const previewLines = [...header, ...pathLines.slice(0, 20)];
+        if (pathLines.length > 20) {
+          previewLines.push(`# ... and ${(pathLines.length - 20).toLocaleString()} more`);
+        }
+        this.manifestPreview = previewLines.join('\n');
+
+        const blob = new Blob([fullText], {type: 'text/plain'});
+        this._blobUrl = URL.createObjectURL(blob);
+        this.manifestDownloadUrl = this._blobUrl;
+      } catch (e) {
+        this.manifestError = e.message;
+      } finally {
+        this.manifestLoading = false;
+      }
+    },
+
+    // ── Reset ────────────────────────────────────────────────────────
+
+    resetFilters() {
+      this.must_have = [];
+      this.must_not_have = [];
+      this.domain = '';
+      this.minAtoms = '';
+      this.maxAtoms = '';
+      this.charge = '';
+      this.spin = '';
+      this.manifestPreview = null;
+      this.manifestDownloadUrl = null;
+      this.manifestCount = null;
+      if (this._blobUrl) { URL.revokeObjectURL(this._blobUrl); this._blobUrl = null; }
+      this.updateCount();
+    },
+
+    init() {
+      this.updateCount();
+    },
+  };
+}
+</script>
+</body>
+</html>
